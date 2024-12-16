@@ -56,26 +56,39 @@ namespace voetbalgok
 
                     string keuze = Console.ReadLine();
 
-                    // Simuleer de wedstrijd en kies een winnaar
-                    var gewonnenTeam = SimuleerWedstrijd(team1, team2);
+                    // Simuleer de wedstrijd met scores en bepaal een winnaar
+                    var (gewonnenTeam, scoreTeam1, scoreTeam2) = SimuleerWedstrijd(team1, team2);
 
-                    // Update de punten van de gebruiker
-                    if ((keuze == "1" && gewonnenTeam == team1) || (keuze == "2" && gewonnenTeam == team2))
+                    // Toon de scores
+                    Console.WriteLine($"\n{team1.Naam} ({scoreTeam1}) vs {team2.Naam} ({scoreTeam2})");
+
+                    if (scoreTeam1 == scoreTeam2)
                     {
-                        huidigeGebruiker.Punten += 1;
-                        Console.WriteLine("Je hebt gewonnen! 1 punt erbij.");
+                        Console.WriteLine($"De wedstrijd eindigt in een gelijkspel!");
+                        Console.WriteLine("Geen punten toegevoegd of afgetrokken.");
                     }
                     else
                     {
-                        huidigeGebruiker.Punten -= 1;
-                        Console.WriteLine("Je hebt verloren. 1 punt eraf.");
+                        Console.WriteLine($"Het winnende team was {gewonnenTeam.Naam}!");
+
+                        // Update de punten van de gebruiker
+                        if ((keuze == "1" && gewonnenTeam == team1) || (keuze == "2" && gewonnenTeam == team2))
+                        {
+                            huidigeGebruiker.Punten += 1;
+                            Console.WriteLine("Je hebt gewonnen! 1 punt erbij.");
+                        }
+                        else
+                        {
+                            huidigeGebruiker.Punten -= 1;
+                            Console.WriteLine("Je hebt verloren. 1 punt eraf.");
+                        }
+
+                        // Sla de wijziging op in de database
+                        context.SaveChanges();
+
+                        // Toon de nieuwe punten
+                        Console.WriteLine($"Nieuwe punten: {huidigeGebruiker.Punten}");
                     }
-
-                    // Sla de wijziging op in de database
-                    context.SaveChanges();
-
-                    // Toon de nieuwe punten
-                    Console.WriteLine($"Nieuwe punten: {huidigeGebruiker.Punten}");
 
                     // Vraag of de gebruiker door wil spelen
                     Console.WriteLine("\nWil je doorgaan? (j/n)");
@@ -89,14 +102,26 @@ namespace voetbalgok
             }
         }
 
-        static Team SimuleerWedstrijd(Team team1, Team team2)
+        static (Team gewonnenTeam, int scoreTeam1, int scoreTeam2) SimuleerWedstrijd(Team team1, Team team2)
         {
-            // Simuleer een wedstrijd en kies willekeurig een winnaar
+            // Genereer willekeurige scores
             Random random = new Random();
-            var gewonnenTeam = random.Next(2) == 0 ? team1 : team2;
-            Console.WriteLine($"\n{team1.Naam} vs {team2.Naam}");
-            Console.WriteLine($"Het winnende team is {gewonnenTeam.Naam}!");
-            return gewonnenTeam;
+            int scoreTeam1 = random.Next(0, 6); // Scores van 0 tot 5
+            int scoreTeam2 = random.Next(0, 6);
+
+            // Bepaal de winnaar of een gelijkspel
+            if (scoreTeam1 > scoreTeam2)
+            {
+                return (team1, scoreTeam1, scoreTeam2);
+            }
+            else if (scoreTeam2 > scoreTeam1)
+            {
+                return (team2, scoreTeam1, scoreTeam2);
+            }
+            else
+            {
+                return (null, scoreTeam1, scoreTeam2); // Gelijkspel
+            }
         }
     }
 }

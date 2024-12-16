@@ -37,27 +37,51 @@ namespace voetbalgok.Classes
             string keuze = Console.ReadLine();
             int gekozenTeamId = keuze == "1" ? team1.Id : team2.Id;
 
-            // Genereer willekeurig een winnaar
-            int winnaarId = _random.Next(2) == 0 ? team1.Id : team2.Id;
-            Console.WriteLine($"Het winnende team is: {(_context.Teams.First(t => t.Id == winnaarId)).Naam}");
+            // Genereer willekeurige scores voor beide teams
+            int scoreTeam1 = _random.Next(0, 5);
+            int scoreTeam2 = _random.Next(0, 5);
 
-            // Verkrijg de gebruiker en update hun punten
+            Console.WriteLine($"De wedstrijd tussen {team1.Naam} en {team2.Naam} eindigt met een score van {scoreTeam1} - {scoreTeam2}.");
+
+            // Verkrijg de gebruiker
             var gebruiker = _context.Gebruikers.First();
 
-            if (gekozenTeamId == winnaarId)
+            // Bepaal de uitkomst van de wedstrijd
+            if (scoreTeam1 > scoreTeam2)
             {
-                Console.WriteLine("Gefeliciteerd! Je hebt het juiste team gekozen. Je krijgt 1 punt.");
-                gebruiker.Punten += 1;
+                int winnaarId = team1.Id;
+                if (gekozenTeamId == winnaarId)
+                {
+                    Console.WriteLine("Gefeliciteerd! Je hebt het juiste team gekozen. Je krijgt 1 punt.");
+                    gebruiker.Punten += 1;
+                }
+                else
+                {
+                    Console.WriteLine("Helaas, je had het verkeerde team gekozen. Je verliest 1 punt.");
+                    gebruiker.Punten -= 1;
+                }
+            }
+            else if (scoreTeam2 > scoreTeam1)
+            {
+                int winnaarId = team2.Id;
+                if (gekozenTeamId == winnaarId)
+                {
+                    Console.WriteLine("Gefeliciteerd! Je hebt het juiste team gekozen. Je krijgt 1 punt.");
+                    gebruiker.Punten += 1;
+                }
+                else
+                {
+                    Console.WriteLine("Helaas, je had het verkeerde team gekozen. Je verliest 1 punt.");
+                    gebruiker.Punten -= 1;
+                }
             }
             else
             {
-                Console.WriteLine("Helaas, je had het verkeerde team gekozen. Je verliest 1 punt.");
-                gebruiker.Punten -= 1;
+                Console.WriteLine("De wedstrijd eindigt in een gelijkspel. Je punten blijven hetzelfde.");
             }
 
             // Sla de wijzigingen op in de database
             _context.SaveChanges();
         }
     }
-
 }
