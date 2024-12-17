@@ -23,105 +23,115 @@ namespace voetbalgok
                 // Haal de gebruiker op
                 var huidigeGebruiker = context.Gebruikers.First();
 
-                bool doorgaan = true;
+                Console.WriteLine($"Welkom {huidigeGebruiker.Naam}! Je huidige punten: {huidigeGebruiker.Punten}");
+                Console.WriteLine("Start het toernooi!\n");
 
-                while (doorgaan)
+                // Haal alle teams uit de database
+                var teams = context.Teams.ToList();
+
+                if (teams.Count < 2)
                 {
-                    // Toon de gebruiker en zijn punten
-                    Console.WriteLine($"\nHuidige gebruiker: {huidigeGebruiker.Naam} - Punten: {huidigeGebruiker.Punten}");
+                    Console.WriteLine("Niet genoeg teams in de database om een toernooi te starten.");
+                    return;
+                }
 
-                    // Haal willekeurige teams op uit de database
-                    var teams = context.Teams.ToList();
-                    if (teams.Count < 2)
-                    {
-                        Console.WriteLine("Niet genoeg teams in de database om een wedstrijd te starten.");
-                        break;
-                    }
+                // Maak toernooi schema
+                var toernooiWedstrijden = MaakToernooiSchema(teams);
 
-                    // Kies twee willekeurige teams
-                    Random random = new Random();
-                    var team1 = teams[random.Next(teams.Count)];
-                    var team2 = teams[random.Next(teams.Count)];
+                // Toon alle wedstrijden voordat voorspellingen worden gedaan
+                Console.WriteLine("--- Toernooi Wedstrijden ---");
+                foreach (var (team1, team2) in toernooiWedstrijden)
+                {
+                    Console.WriteLine($"{team1.Naam} vs {team2.Naam}");
+                }
 
-                    // Zorg ervoor dat het niet hetzelfde team is
-                    while (team1 == team2)
-                    {
-                        team2 = teams[random.Next(teams.Count)];
-                    }
+                Console.WriteLine("\nNu kun je voorspellingen plaatsen voor elke wedstrijd.");
 
-                    // Toon de teams en vraag de gebruiker om een keuze
-                    Console.WriteLine($"Kies een team om te winnen:");
+                var weddenschappen = new Dictionary<(Team, Team), Team>(); // Opslaan van voorspellingen
+                var resultaten = new List<(Team Team1, Team Team2, Team GewonnenTeam, int Score1, int Score2)>();
+
+                // Voorspellingen plaatsen
+                foreach (var (team1, team2) in toernooiWedstrijden)
+                {
+                    Console.WriteLine($"\nWie wint deze wedstrijd?");
                     Console.WriteLine($"1: {team1.Naam}");
                     Console.WriteLine($"2: {team2.Naam}");
 
                     string keuze = Console.ReadLine();
+                    Team voorspelling = keuze == "1" ? team1 : team2;
+                    weddenschappen[(team1, team2)] = voorspelling;
+                }
 
-                    // Simuleer de wedstrijd met scores en bepaal een winnaar
-                    var (gewonnenTeam, scoreTeam1, scoreTeam2) = SimuleerWedstrijd(team1, team2);
+                // Simuleer de wedstrijden
+                foreach (var (team1, team2) in toernooiWedstrijden)
+                {
+                    var (gewonnenTeam, score1, score2) = SimuleerWedstrijd(team1, team2);
+                    resultaten.Add((team1, team2, gewonnenTeam, score1, score2));
+                }
 
-                    // Toon de scores
-                    Console.WriteLine($"\n{team1.Naam} ({scoreTeam1}) vs {team2.Naam} ({scoreTeam2})");
+                // Toon resultaten en bereken punten
+                Console.WriteLine("\n--- Toernooi Resultaten ---");
+                foreach (var (team1, team2, gewonnenTeam, score1, score2) in resultaten)
+                {
+                    Console.WriteLine($"{team1.Naam} ({score1}) vs {team2.Naam} ({score2}) - Winnaar: {gewonnenTeam.Naam}");
 
-                    if (scoreTeam1 == scoreTeam2)
+                    if (weddenschappen[(team1, team2)] == gewonnenTeam)
                     {
-                        Console.WriteLine($"De wedstrijd eindigt in een gelijkspel!");
-                        Console.WriteLine("Geen punten toegevoegd of afgetrokken.");
+                        huidigeGebruiker.Punten += 1;
+                        Console.WriteLine($"Je voorspelde correct! +1 punt.");
                     }
                     else
                     {
-                        Console.WriteLine($"Het winnende team was {gewonnenTeam.Naam}!");
-
-                        // Update de punten van de gebruiker
-                        if ((keuze == "1" && gewonnenTeam == team1) || (keuze == "2" && gewonnenTeam == team2))
-                        {
-                            huidigeGebruiker.Punten += 1;
-                            Console.WriteLine("Je hebt gewonnen! 1 punt erbij.");
-                        }
-                        else
-                        {
-                            huidigeGebruiker.Punten -= 1;
-                            Console.WriteLine("Je hebt verloren. 1 punt eraf.");
-                        }
-
-                        // Sla de wijziging op in de database
-                        context.SaveChanges();
-
-                        // Toon de nieuwe punten
-                        Console.WriteLine($"Nieuwe punten: {huidigeGebruiker.Punten}");
-                    }
-
-                    // Vraag of de gebruiker door wil spelen
-                    Console.WriteLine("\nWil je doorgaan? (j/n)");
-                    string doorgaanKeuze = Console.ReadLine();
-                    if (doorgaanKeuze?.ToLower() != "j")
-                    {
-                        doorgaan = false;
-                        Console.WriteLine("Bedankt voor het spelen!");
+                        huidigeGebruiker.Punten -= 1;
+                        Console.WriteLine($"Je voorspelde verkeerd. -1 punt.");
                     }
                 }
+
+                // Sla de nieuwe punten op
+                context.SaveChanges();
+
+                // Toon eindpunten
+                Console.WriteLine($"\nToernooi afgelopen! Je eindstand: {huidigeGebruiker.Punten} punten.");
+                Console.WriteLine("Bedankt voor het spelen!");
             }
+        }
+
+        static List<(Team, Team)> MaakToernooiSchema(List<Team> teams)
+        {
+            Random random = new Random();
+            var beschikbareTeams = new List<Team>(teams);
+            var wedstrijden = new List<(Team, Team)>();
+
+            while (beschikbareTeams.Count >= 2)
+            {
+                var team1 = beschikbareTeams[random.Next(beschikbareTeams.Count)];
+                beschikbareTeams.Remove(team1);
+
+                var team2 = beschikbareTeams[random.Next(beschikbareTeams.Count)];
+                beschikbareTeams.Remove(team2);
+
+                wedstrijden.Add((team1, team2));
+            }
+
+            return wedstrijden;
         }
 
         static (Team gewonnenTeam, int scoreTeam1, int scoreTeam2) SimuleerWedstrijd(Team team1, Team team2)
         {
             // Genereer willekeurige scores
             Random random = new Random();
-            int scoreTeam1 = random.Next(0, 6); // Scores van 0 tot 5
-            int scoreTeam2 = random.Next(0, 6);
+            int score1 = random.Next(0, 6);
+            int score2 = random.Next(0, 6);
 
-            // Bepaal de winnaar of een gelijkspel
-            if (scoreTeam1 > scoreTeam2)
+            // Zorg dat er geen gelijkspel is
+            while (score1 == score2)
             {
-                return (team1, scoreTeam1, scoreTeam2);
+                score1 = random.Next(0, 6);
+                score2 = random.Next(0, 6);
             }
-            else if (scoreTeam2 > scoreTeam1)
-            {
-                return (team2, scoreTeam1, scoreTeam2);
-            }
-            else
-            {
-                return (null, scoreTeam1, scoreTeam2); // Gelijkspel
-            }
+
+            Team winnaar = score1 > score2 ? team1 : team2;
+            return (winnaar, score1, score2);
         }
     }
 }
